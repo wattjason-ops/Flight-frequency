@@ -8,25 +8,30 @@
         :root { --neon-green: #00ff41; --danger-red: #ff3131; }
         body { background: #0a0a0c; color: var(--neon-green); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; }
         #game-container { max-width: 450px; width: 95%; border: 1px solid #333; padding: 15px; border-radius: 12px; background: #121214; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        
         .cabin { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 10px; background: #1a1a1e; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #222; }
         .seat { background: #2a2a30; height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.2em; border-radius: 5px; position: relative; transition: background 0.3s; }
         .aisle { background: #121214; border-left: 2px dashed #333; border-right: 2px dashed #333; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: #555; }
         .player-seat { border: 2px solid var(--neon-green); background: #003310; box-shadow: inset 0 0 10px var(--neon-green); }
         .stink-cloud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(154, 205, 50, 0.4); border-radius: 5px; animation: fade 2s forwards; pointer-events: none; }
+        
         .stat-group { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 5px; }
         .bar-bg { background: #222; height: 12px; width: 100%; border-radius: 6px; margin-bottom: 15px; border: 1px solid #333; overflow: hidden; }
         #gas-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff41, #f1c40f, #e74c3c); transition: width 0.4s; }
-        #log { height: 120px; overflow-y: auto; font-size: 0.85em; background: #000; padding: 10px; border-radius: 5px; margin-bottom: 15px; color: #888; border-left: 3px solid var(--neon-green); }
+        #log { height: 140px; overflow-y: auto; font-size: 0.85em; background: #000; padding: 10px; border-radius: 5px; margin-bottom: 15px; color: #888; border-left: 3px solid var(--neon-green); }
         .btn { background: var(--neon-green); color: #000; border: none; padding: 12px; margin: 5px 0; border-radius: 6px; width: 100%; font-weight: bold; font-size: 14px; text-transform: uppercase; }
         .btn:disabled { background: #333; color: #666; }
+        
         @keyframes fade { from { opacity: 1; } to { opacity: 0; } }
         @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(1px, 1px); } }
         .turbulence, .critical-shake { animation: shake 0.2s infinite; }
     </style>
 </head>
 <body>
+
 <div id="game-container">
     <h3 style="margin-top:0; text-align:center;">💨 FLIGHT FREQUENCY</h3>
+    
     <div id="setup">
         <label>Meal at Home:</label>
         <select id="meal" class="btn" style="background:#222; color:white; margin-bottom:15px;">
@@ -43,79 +48,133 @@
         </select>
         <button class="btn" onclick="startGame()">BOARD AIRCRAFT</button>
     </div>
+
     <div id="gameplay" style="display:none;">
         <div class="stat-group"><span>PRESSURE</span><span id="gas-text">0%</span></div>
         <div class="bar-bg" id="gas-container-bar"><div id="gas-bar"></div></div>
+
         <div class="cabin" id="cabin-map">
             <div class="seat" id="s1">🙂</div><div class="aisle"></div><div class="seat" id="s2">🙂</div>
             <div class="seat player-seat">🤢</div><div class="aisle">AISLE</div><div class="seat" id="s3">🙂</div>
             <div class="seat" id="s4">🙂</div><div class="aisle"></div><div class="seat" id="s5">🙂</div>
         </div>
+
         <div id="log">Welcome to Seat 2B.</div>
+
         <div class="stat-group">
             <span>EMBARRASSMENT: <b id="emb-val">0</b>/5</span>
             <span>TIME: <b id="time-val">0</b>m</span>
         </div>
+
         <button class="btn" id="vik-btn" onclick="playMove('vik')" disabled>THE 'VIK' (CROP DUST)</button>
         <button class="btn" onclick="playMove('aaron')">THE 'AARON' (SQUEAKER)</button>
         <button class="btn" onclick="playMove('ben')">THE 'BEN' (THE BLAST)</button>
     </div>
 </div>
+
 <script>
     let gas = 0, embarrassment = 0, time = 0, totalTime = 0, eventActive = "";
     const passengers = [
         {id: 's1', suspicion: 0, flagged: false}, {id: 's2', suspicion: 0, flagged: false},
         {id: 's3', suspicion: 0, flagged: false}, {id: 's4', suspicion: 0, flagged: false}, {id: 's5', suspicion: 0, flagged: false}
     ];
+
     function startGame() {
         const meal = parseInt(document.getElementById('meal').value);
         const coffee = document.getElementById('coffee').checked ? 1 : 0;
         const poop = document.getElementById('poop').value;
+
         gas = (poop === 'airport' ? 10 : (poop === 'morning' ? 30 : 50));
         embarrassment = (poop === 'airport' ? 1 : 0);
         gas += (meal + coffee) * 10;
         totalTime = Math.floor(Math.random() * (600 - 60) + 60);
+
         document.getElementById('setup').style.display = 'none';
         document.getElementById('gameplay').style.display = 'block';
         updateUI(); tick();
     }
+
     function tick() {
         if (time >= totalTime || embarrassment >= 5) return endGame();
+        
         time += 30; gas += 8;
-        if (gas > 100) {
+
+        // --- FORCED RELEASE AT 130% ---
+        if (gas >= 130) {
+            log("💥 CRITICAL BLOWOUT: Pressure exceeds physical limits!");
+            playMove('ben'); 
+        } 
+        // --- CRITICAL CHANCE (Over 100%) ---
+        else if (gas > 100) {
             document.getElementById('gas-container-bar').classList.add('critical-shake');
             if (Math.random() < (gas - 100) / 100) {
-                log("⚠️ CRITICAL FAILURE: You lost control!"); playMove('ben'); 
-            } else { log("⚠️ Intestinal distress! Pressure critical!"); }
-        } else { document.getElementById('gas-container-bar').classList.remove('critical-shake'); }
+                log("⚠️ LOSS OF CONTROL: You couldn't hold it!");
+                playMove('ben'); 
+            } else {
+                log("⚠️ Intestinal distress! Clench for your life!");
+            }
+        } else {
+            document.getElementById('gas-container-bar').classList.remove('critical-shake');
+        }
+        
         const roll = Math.random();
         document.getElementById('cabin-map').classList.remove('turbulence');
         eventActive = "";
+
         if (roll < 0.2) {
             eventActive = "turbulence"; document.getElementById('cabin-map').classList.add('turbulence'); log("TURBULENCE! Masking noise.");
         } else if (roll < 0.4) {
             eventActive = "distraction"; document.getElementById('vik-btn').disabled = false; log("Attendant helping nearby. Movement allowed.");
-        } else { document.getElementById('vik-btn').disabled = true; }
-        updateUI(); if (embarrassment < 5) setTimeout(tick, 4000);
-    }
-    function playMove(type) {
-        if (type === 'vik') { gas -= 20; log("You paced the aisle. Relieved."); addCloud('aisle'); }
-        else if (type === 'aaron') {
-            gas -= 35;
-            if (eventActive !== 'distraction' && eventActive !== 'turbulence') { passengers[2].suspicion += 1; log("A quiet hiss. Seatmate is suspicious."); }
-            else { log("A quiet squeak. Nobody noticed."); }
-        } else if (type === 'ben') {
-            gas -= 60; addCloud('player-seat');
-            if (eventActive === 'turbulence') { log("Turbulence hid the blast!"); }
-            else { passengers.forEach(p => p.suspicion += 2); embarrassment += 1; log("TOTAL DISASTER. The cabin is reeling."); }
+        } else {
+            document.getElementById('vik-btn').disabled = true;
         }
-        passengers.forEach(p => { if (p.suspicion >= 3 && !p.flagged) { embarrassment += 1; p.flagged = true; } });
-        gas = Math.max(0, gas); updateUI();
+
+        updateUI();
+        if (embarrassment < 5) setTimeout(tick, 4000);
     }
+
+    function playMove(type) {
+        if (type === 'vik') {
+            // REDEMPTION MECHANIC
+            if (gas >= 80 && embarrassment > 0) {
+                embarrassment -= 1;
+                log("✨ HEROIC DUST: Discretion rewarded! Embarrassment lowered.");
+            }
+            gas -= 20;
+            log("You paced the aisle. Relieved.");
+            addCloud('aisle');
+        } else if (type === 'aaron') {
+            gas -= 35;
+            if (eventActive !== 'distraction' && eventActive !== 'turbulence') {
+                passengers[2].suspicion += 1; 
+                log("A quiet hiss. Your seatmate looks suspicious.");
+            } else { log("A quiet squeak. Masked perfectly!"); }
+        } else if (type === 'ben') {
+            gas -= 60;
+            addCloud('player-seat');
+            if (eventActive === 'turbulence') {
+                log("The rattle of the engines hid the blast!");
+            } else {
+                passengers.forEach(p => p.suspicion += 2);
+                embarrassment += 1;
+                log("TOTAL DISASTER. The cabin is reeling.");
+            }
+        }
+
+        passengers.forEach(p => {
+            if (p.suspicion >= 3 && !p.flagged) { embarrassment += 1; p.flagged = true; }
+        });
+
+        gas = Math.max(0, gas);
+        updateUI();
+    }
+
     function addCloud(targetClass) {
-        const cloud = document.createElement('div'); cloud.className = 'stink-cloud';
+        const cloud = document.createElement('div');
+        cloud.className = 'stink-cloud';
         document.querySelector('.' + targetClass).appendChild(cloud);
     }
+
     function updateUI() {
         document.getElementById('gas-bar').style.width = Math.min(gas, 100) + "%";
         document.getElementById('gas-text').innerText = gas + "%";
@@ -123,15 +182,27 @@
         document.getElementById('time-val').innerText = time;
         passengers.forEach(p => {
             const el = document.getElementById(p.id);
-            const icons = ["🙂", "🤨", "🤢", "🤬"]; el.innerText = icons[Math.min(p.suspicion, 3)];
+            const icons = ["🙂", "🤨", "🤢", "🤬"];
+            el.innerText = icons[Math.min(p.suspicion, 3)];
         });
     }
+
     function log(m) {
-        const l = document.getElementById('log'); l.innerHTML = `> ${m}<br>` + l.innerHTML;
+        const l = document.getElementById('log');
+        l.innerHTML = `> ${m}<br>` + l.innerHTML;
     }
+
     function endGame() {
-        const scores = ["0: FA hits on you.", "1: Status upgrade.", "2: Victory in group chat!", "3: Cringe LinkedIn post.", "4: Brown streaks.", "5: DIED OF CRINGE."];
-        alert("GAME OVER\n" + scores[Math.min(embarrassment, 5)]); location.reload();
+        const scores = [
+            "0: The flight attendant hits on you.",
+            "1: You get a status upgrade.",
+            "2: Victory in the group chat!",
+            "3: Cringe LinkedIn post incoming.",
+            "4: Brown streaks in underwear.",
+            "5: YOU DIED OF CRINGE."
+        ];
+        alert("FLIGHT OVER\n" + scores[Math.min(embarrassment, 5)]);
+        location.reload();
     }
 </script>
 </body>
